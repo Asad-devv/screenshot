@@ -1,76 +1,70 @@
-const express = require("express");
-const puppeteer = require("puppeteer");
+// api/screenshot.js
+
+import express from "express";
+import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer-core";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Middleware to capture logs
-let logs = [];
-const captureLog = (msg) => {
-  logs.push(msg);
-  console.log(msg);
-};
-
-app.get("/", (req, res) => res.send("Hello, this is the root endpoint!"));
-
-app.get("/screenshot", async (req, res) => {
-  logs = []; // reset logs for this request
+async function captureScreenshot(url) {
+  let browser = null;
+  let logs = [];
   let checkpoint = 0;
-
-  const url = req.query.url;
-
-  if (!url) {
-    return res.status(400).json({ 
-      error: "Missing url query parameter",
-      logs,
-      checkpoint
-    });
-  }
 
   try {
     checkpoint = 1;
-    captureLog(`Checkpoint ${checkpoint}: launching browser`);
+    logs.push(`Checkpoint ${checkpoint}: launching browser`);
 
-    const browser = await puppeteer.launch({
-      headless: "new", // use true if puppeteer < v20
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
 
     checkpoint = 2;
-    captureLog(`Checkpoint ${checkpoint}: browser launched`);
+    logs.push(`Checkpoint ${checkpoint}: browser launched`);
 
     const page = await browser.newPage();
     checkpoint = 3;
-    captureLog(`Checkpoint ${checkpoint}: new page opened`);
+    logs.push(`Checkpoint ${checkpoint}: new page opened`);
 
     await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
     checkpoint = 4;
-    captureLog(`Checkpoint ${checkpoint}: navigated to ${url}`);
+    logs.push(`Checkpoint ${checkpoint}: navigated to ${url}`);
 
     const screenshot = await page.screenshot({ fullPage: true });
     checkpoint = 5;
-    captureLog(`Checkpoint ${checkpoint}: screenshot taken`);
+    logs.push(`Checkpoint ${checkpoint}: screenshot taken`);
 
-    await browser.close();
-    checkpoint = 6;
-    captureLog(`Checkpoint ${checkpoint}: browser closed`);
-
-    res.set("Content-Type", "image/png");
-    res.send(screenshot);
-
+    return { screenshot, logs, checkpoint };
   } catch (err) {
-    checkpoint = -1;
-    captureLog(`Checkpoint ${checkpoint}: error occurred`);
-    captureLog(err.stack || err.message || err);
-
-    res.status(500).json({
-      error: "Failed to capture screenshot",
-      errormsg: err.message,
-      stack: err.stack,
-      logs,
-      checkpoint
-    });
+    return { error: err.message, stack: err.stack, logs, checkpoint };
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
+}
+
+// Express route for local dev
+app.get("/", (req, res) => {
+  res.send("Server running - use /screenshot?url=https://example.com");
+});
+
+app.get("/screenshot", async (req, res) => {
+  const { url } = req.query;
+  if (!url) {
+    return res.status(400).json({ error: "Missing url query parameter" });
+  }
+
+  const result = await captureScreenshot(url);
+
+  if (result.error) {
+    return res.status(500).json(result);
+  }
+
+  res.setHeader("Content-Type", "image/png");
+  return res.send(result.screenshot);
 });
 
 app.listen(PORT, () => {
