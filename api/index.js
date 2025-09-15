@@ -18,9 +18,8 @@ async function captureScreenshot(url) {
 
     browser = await puppeteer.launch({
       args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
+      defaultViewport: chromium.defaultViewport,
       ignoreHTTPSErrors: true,
-
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
     });
@@ -36,6 +35,31 @@ async function captureScreenshot(url) {
     checkpoint = 4;
     logs.push(`Checkpoint ${checkpoint}: navigated to ${url}`);
 
+    // Close modal if present
+    try {
+      await page.waitForSelector("button", { timeout: 5000 });
+      await page.click("button");
+      logs.push("Modal closed");
+      await page.waitForTimeout(2000); // sleep 2s
+    } catch {
+      logs.push("No modal found, continuing...");
+    }
+
+    // Remove navbar, wallet list, watermark
+    await page.evaluate(() => {
+      const nav = document.querySelector("header");
+      if (nav) nav.remove();
+
+      const walletList = document.querySelector(".side-table, [class*='SideTable']");
+      if (walletList) walletList.remove();
+
+      const watermark = document.querySelector(".iframe-watermark");
+      if (watermark) watermark.remove();
+    });
+    logs.push("Removed navbar, wallet list, watermark");
+
+    await page.waitForTimeout(8000); // wait for re-render
+
     const screenshot = await page.screenshot({ fullPage: true });
     checkpoint = 5;
     logs.push(`Checkpoint ${checkpoint}: screenshot taken`);
@@ -50,11 +74,12 @@ async function captureScreenshot(url) {
   }
 }
 
-// Express route for local dev
+// Root route
 app.get("/", (req, res) => {
   res.send("Server running - use /screenshot?url=https://example.com");
 });
 
+// Screenshot route
 app.get("/screenshot", async (req, res) => {
   const { url } = req.query;
   if (!url) {
@@ -71,6 +96,10 @@ app.get("/screenshot", async (req, res) => {
   return res.send(result.screenshot);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
+// Local dev only
+  app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+  });
+
+
+export default app;
