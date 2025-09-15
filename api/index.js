@@ -5,6 +5,7 @@ import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 async function captureScreenshot(url) {
   let browser = null;
