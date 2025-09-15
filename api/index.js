@@ -18,6 +18,9 @@ async function captureScreenshot(url) {
 
     browser = await puppeteer.launch({
       args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+      ignoreHTTPSErrors: true,
+
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
     });
