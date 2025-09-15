@@ -3,6 +3,8 @@ const puppeteer = require("puppeteer");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+app.get("/", (req, res) => res.send("Hello, this is the root endpoint!"));
+
 
 app.get("/screenshot", async (req, res) => {
   const url = req.query.url;
@@ -31,7 +33,7 @@ app.get("/screenshot", async (req, res) => {
 
   } catch (err) {
     console.error("Screenshot error:", err);
-    res.status(500).json({ error: "Failed to capture screenshot" });
+    res.status(500).json({ error: "Failed to capture screenshot",errormsg:err });
   }
 });
 
