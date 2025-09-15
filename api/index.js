@@ -1,7 +1,5 @@
 const express = require("express");
 const puppeteer = require("puppeteer");
-const fs = require("fs");
-const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,25 +13,22 @@ app.get("/screenshot", async (req, res) => {
 
   try {
     const browser = await puppeteer.launch({
-      headless: "new", // if older Puppeteer version, use true instead
+      headless: "new", // use true if puppeteer < v20
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
 
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
-    const filename = `screenshot_${Date.now()}.png`;
-    const filepath = path.join(__dirname, filename);
+    // Take screenshot directly into memory
+    const screenshot = await page.screenshot({ fullPage: true });
 
-    await page.screenshot({ path: filepath, fullPage: true });
     await browser.close();
 
-    res.sendFile(filepath, () => {
-      // Clean up the file after sending
-      fs.unlink(filepath, (err) => {
-        if (err) console.error("Failed to delete file:", err);
-      });
-    });
+    // Send as image buffer instead of saving file
+    res.set("Content-Type", "image/png");
+    res.send(screenshot);
+
   } catch (err) {
     console.error("Screenshot error:", err);
     res.status(500).json({ error: "Failed to capture screenshot" });
