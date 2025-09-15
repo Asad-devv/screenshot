@@ -7,6 +7,10 @@ import puppeteer from "puppeteer-core";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 async function captureScreenshot(url) {
   let browser = null;
   let logs = [];
@@ -58,7 +62,7 @@ async function captureScreenshot(url) {
     });
     logs.push("Removed navbar, wallet list, watermark");
 
-    await page.waitForTimeout(8000); // wait for re-render
+    await sleep(8000); // wait for re-render
 
     const screenshot = await page.screenshot({ fullPage: true });
     checkpoint = 5;

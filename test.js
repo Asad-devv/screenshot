@@ -11,6 +11,7 @@ async function downloadScreenshot() {
     const response = await axios.get(url, {
       responseType: "arraybuffer", // important: get binary data
     });
+    
 
     fs.writeFileSync("screenshot.png", response.data);
     console.log("✅ Screenshot saved as screenshot.png");
